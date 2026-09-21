@@ -7,7 +7,7 @@
 <header class="top"><div class="brand">교동짬뽕</div><div class="sub">모바일 매장관리 V1 · 어디서든 간편하게</div></header>
 <main class="wrap"><section class="cards">
 <div class="card"><small>전체 매출</small><b id="total">0원</b></div><div class="card"><small>배달 매출</small><b id="delivery">0원</b></div>
-<div class="card"><small>홀 매출</small><b id="hall">0원</b></div><div class="card"><small>현금 매출</small><b id="cash">0원</b></div></section>
+<div class="card"><small>홀 매출</small><b id="hallTotal">0원</b></div><div class="card"><small>현금 매출</small><b id="cash">0원</b></div></section>
 <section class="panel"><div class="title">오늘 매출 입력</div><input id="date" class="date" type="date">
 <div class="grid" id="fields"></div><div class="buttons"><button class="save" onclick="save()">저장하기</button><button class="del" onclick="removeDay()">삭제</button></div></section>
 <section class="panel"><div class="title">최근 매출 기록</div><div id="history" class="history"></div></section>
@@ -18,7 +18,7 @@ const $=id=>document.getElementById(id), won=n=>(+n||0).toLocaleString("ko-KR")+
 function data(){try{return JSON.parse(localStorage.getItem(key)||"{}")}catch{return {}}}
 function val(k){const e=$(k);if(!e)return 0;const s=String(e.value??"0").replace(/[^0-9.-]/g,"");return Number(s)||0}
 function renderFields(){ $("fields").innerHTML=F.map(([k,n])=>'<div class="field"><label>'+n+'</label><input id="'+k+'" inputmode="numeric" value="0" onfocus="this.select()" oninput="calc()"></div>').join("")+'<div class="field wide"><label>메모</label><input id="memo" style="text-align:left" placeholder="특이사항이 있으면 입력"></div>'}
-function calc(){let d=val("baemin")+val("yogiyo")+val("coupang")+val("ddangyo")+val("other"),h=val("hall"),c=val("deliveryCash")+val("hallCash");$("delivery").textContent=won(d);$("hall").textContent=won(h);$("total").textContent=won(d+h);$("cash").textContent=won(c)}
+function calc(){let d=val("baemin")+val("yogiyo")+val("coupang")+val("ddangyo")+val("other"),h=val("hall"),c=val("deliveryCash")+val("hallCash");$("delivery").textContent=won(d);$("hallTotal").textContent=won(h);$("total").textContent=won(d+h);$("cash").textContent=won(c)}
 function load(){let r=data()[$("date").value];F.forEach(([k])=>$(k).value=r?.[k]??0);$("memo").value=r?.memo??"";calc()}
 function save(){let o={};F.forEach(([k])=>o[k]=val(k));o.memo=$("memo").value;if(o.deliveryCash>o.baemin+o.yogiyo+o.coupang+o.ddangyo+o.other)return alert("배달 현금매출을 확인해 주세요.");if(o.hallCash>o.hall)return alert("홀 현금매출을 확인해 주세요.");let all=data();all[$("date").value]=o;localStorage.setItem(key,JSON.stringify(all));calc();historyView();alert("저장했습니다.")}
 function removeDay(){if(!confirm("이 날짜 기록을 삭제할까요?"))return;let all=data();delete all[$("date").value];localStorage.setItem(key,JSON.stringify(all));load();historyView()}
