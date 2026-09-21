@@ -11,19 +11,25 @@
 <section class="panel"><div class="title">오늘 매출 입력</div><input id="date" class="date" type="date">
 <div class="grid" id="fields"></div><div class="buttons"><button class="save" onclick="save()">저장하기</button><button class="del" onclick="removeDay()">삭제</button></div></section>
 <section class="panel"><div class="title">최근 매출 기록</div><div id="history" class="history"></div></section>
-<div class="foot">V1은 이 휴대폰에 안전하게 저장됩니다 · PC 동기화는 다음 단계</div></main>
+<div class="foot">휴대폰에 저장 + 가게 PC와 온라인 동기화</div></main>
 <script>
 const F=[["baemin","배민"],["yogiyo","요기요"],["coupang","쿠팡이츠"],["ddangyo","땡겨요"],["other","기타 배달"],["deliveryCash","배달 현금"],["hall","홀 매출"],["hallCash","홀 현금"]];
 const $=id=>document.getElementById(id), won=n=>(+n||0).toLocaleString("ko-KR")+"원", key="gyodong_mobile_v1";
+const SYNC_URL="https://avqkiuiggmgnlkknjrit.supabase.co/functions/v1/gyodong-sync", SYNC_KEY="gyodong_store_key";
+function storeKey(){let k=localStorage.getItem(SYNC_KEY);if(!k){k=prompt("교동짬뽕 매장 연결코드를 입력하세요.")||"";if(k)localStorage.setItem(SYNC_KEY,k)}return k}
+async function cloud(method="GET",body=null,q=""){let k=storeKey();if(!k)throw Error("연결코드 없음");let o={method,headers:{"x-store-key":k,"Content-Type":"application/json"}};if(body)o.body=JSON.stringify(body);let r=await fetch(SYNC_URL+q,o);if(!r.ok)throw Error("동기화 실패");return await r.json()}
 function data(){try{return JSON.parse(localStorage.getItem(key)||"{}")}catch{return {}}}
 function val(k){const e=$(k);if(!e)return 0;const s=String(e.value??"0").replace(/[^0-9.-]/g,"");return Number(s)||0}
 function renderFields(){ $("fields").innerHTML=F.map(([k,n])=>'<div class="field"><label>'+n+'</label><input id="'+k+'" inputmode="numeric" value="0" onfocus="this.select()" oninput="calc()"></div>').join("")+'<div class="field wide"><label>메모</label><input id="memo" style="text-align:left" placeholder="특이사항이 있으면 입력"></div>'}
 function calc(){let d=val("baemin")+val("yogiyo")+val("coupang")+val("ddangyo")+val("other"),h=val("hall"),c=val("deliveryCash")+val("hallCash");$("delivery").textContent=won(d);$("hallTotal").textContent=won(h);$("total").textContent=won(d+h);$("cash").textContent=won(c)}
-function load(){let r=data()[$("date").value];F.forEach(([k])=>$(k).value=r?.[k]??0);$("memo").value=r?.memo??"";calc()}
-function save(){let o={};F.forEach(([k])=>o[k]=val(k));o.memo=$("memo").value;if(o.deliveryCash>o.baemin+o.yogiyo+o.coupang+o.ddangyo+o.other)return alert("배달 현금매출을 확인해 주세요.");let all=data();all[$("date").value]=o;localStorage.setItem(key,JSON.stringify(all));calc();historyView();alert("저장했습니다.")}
-function removeDay(){if(!confirm("이 날짜 기록을 삭제할까요?"))return;let all=data();delete all[$("date").value];localStorage.setItem(key,JSON.stringify(all));load();historyView()}
+function applyLocal(r){F.forEach(([k])=>$(k).value=r?.[k]??0);$("memo").value=r?.memo??"";calc()}
+function rowToLocal(r){return r?{baemin:+r.baemin||0,yogiyo:+r.yogiyo||0,coupang:+r.coupang||0,ddangyo:+r.ddangyo||0,other:+r.delivery_other||0,deliveryCash:+r.delivery_cash||0,hall:+r.hall_sales||0,hallCash:+r.hall_cash||0,memo:r.memo||""}:null}
+async function load(){let d=$("date").value,r=data()[d];applyLocal(r);try{let rows=await cloud("GET",null,"?date="+encodeURIComponent(d));if(rows[0]){let x=rowToLocal(rows[0]),all=data();all[d]=x;localStorage.setItem(key,JSON.stringify(all));applyLocal(x)}}catch(e){}}
+async function save(){let o={};F.forEach(([k])=>o[k]=val(k));o.memo=$("memo").value;if(o.deliveryCash>o.baemin+o.yogiyo+o.coupang+o.ddangyo+o.other)return alert("배달 현금매출을 확인해 주세요.");let d=$("date").value,all=data();all[d]=o;localStorage.setItem(key,JSON.stringify(all));calc();historyView();let row={sale_date:d,baemin:o.baemin,yogiyo:o.yogiyo,coupang:o.coupang,ddangyo:o.ddangyo,delivery_other:o.other,delivery_cash:o.deliveryCash,hall_sales:o.hall,hall_cash:o.hallCash,memo:o.memo};try{await cloud("POST",row);alert("저장·동기화 완료")}catch(e){alert("휴대폰에는 저장됐지만 온라인 동기화는 실패했습니다.")}}
+async function removeDay(){if(!confirm("이 날짜 기록을 삭제할까요?"))return;let d=$("date").value,all=data();delete all[d];localStorage.setItem(key,JSON.stringify(all));applyLocal(null);historyView();try{await cloud("DELETE",null,"?date="+encodeURIComponent(d))}catch(e){}}
 function historyView(){let all=data(),ks=Object.keys(all).sort().reverse().slice(0,20);$("history").innerHTML=ks.length?ks.map(k=>{let r=all[k],d=r.baemin+r.yogiyo+r.coupang+r.ddangyo+r.other,t=d+(r.hall||0);return '<div class="row" onclick="pick(\''+k+'\')"><span>'+k.slice(5)+'</span><span>배달 '+won(d)+'</span><b>'+won(t)+'</b></div>'}).join(""):'<div class="empty">아직 저장된 매출이 없습니다.</div>'}
+async function syncHistory(){try{let rows=await cloud();let all=data();for(let r of rows)all[r.sale_date]=rowToLocal(r);localStorage.setItem(key,JSON.stringify(all));historyView();await load()}catch(e){}}
 function pick(k){$("date").value=k;load();scrollTo({top:150,behavior:"smooth"})}
-renderFields();$("date").value=new Date().toISOString().slice(0,10);$("date").onchange=load;load();historyView();
+renderFields();$("date").value=new Date().toISOString().slice(0,10);$("date").onchange=load;load();historyView();syncHistory();
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
 </script></body></html>
