@@ -11,12 +11,13 @@
 <section class="panel"><div class="title">오늘 매출 입력</div><input id="date" class="date" type="date">
 <div class="grid" id="fields"></div><div class="buttons"><button class="save" onclick="save()">저장하기</button><button class="del" onclick="removeDay()">삭제</button></div></section>
 <section class="panel"><div class="title">최근 매출 기록</div><div id="history" class="history"></div></section>
-<div class="foot">휴대폰에 저장 + 가게 PC와 온라인 동기화</div></main>
+<div class="foot">휴대폰에 저장 + 가게 PC와 온라인 동기화<br><button onclick="resetStoreKey()" style="margin-top:10px;background:#e9ded1;color:#4c4039;font-size:13px;padding:9px 12px">연결코드 다시 입력</button></div></main>
 <script>
 const F=[["baemin","배민"],["yogiyo","요기요"],["coupang","쿠팡이츠"],["ddangyo","땡겨요"],["other","기타 배달"],["deliveryCash","배달 현금"],["hall","홀 매출"],["hallCash","홀 현금"]];
 const $=id=>document.getElementById(id), won=n=>(+n||0).toLocaleString("ko-KR")+"원", key="gyodong_mobile_v1";
 const SYNC_URL="https://avqkiuiggmgnlkknjrit.supabase.co/functions/v1/gyodong-sync", SYNC_KEY="gyodong_store_key";
 function storeKey(){let k=localStorage.getItem(SYNC_KEY);if(!k){k=prompt("교동짬뽕 매장 연결코드를 입력하세요.")||"";if(k)localStorage.setItem(SYNC_KEY,k)}return k}
+function resetStoreKey(){localStorage.removeItem(SYNC_KEY);alert("기존 연결코드를 지웠습니다. 다시 입력해 주세요.");storeKey();syncHistory()}
 async function cloud(method="GET",body=null,q=""){let k=storeKey();if(!k)throw Error("연결코드 없음");let o={method,headers:{"x-store-key":k,"Content-Type":"application/json"}};if(body)o.body=JSON.stringify(body);let r=await fetch(SYNC_URL+q,o);if(!r.ok)throw Error("동기화 실패");return await r.json()}
 function data(){try{return JSON.parse(localStorage.getItem(key)||"{}")}catch{return {}}}
 function val(k){const e=$(k);if(!e)return 0;const s=String(e.value??"0").replace(/[^0-9.-]/g,"");return Number(s)||0}
